@@ -10,12 +10,27 @@ module BetterErrors
     attr_reader :filename, :line, :name, :frame_binding
 
     def initialize(filename, line, name, frame_binding = nil)
-      @filename       = filename
-      @line           = line
-      @name           = name
-      @frame_binding  = frame_binding
+      @filename, @line = correct_tmp_file(filename, line)
+      @name            = name
+      @frame_binding   = frame_binding
 
       set_pretty_method_name if frame_binding
+    end
+
+    def correct_tmp_file filename, line
+      if filename.include? '/tmp/set/'
+        Wagn.paths['mod'].existent.each do |mod_path|
+          File.dirname(filename).match /\/tmp\/set\/(.+)/
+          set_dir = $1
+          base = File.basename(filename).gsub(/^\d+/,'').gsub('-','/')
+          search_path = File.join mod_path, '**', 'set', set_dir, base
+          corrected_filename = Dir[search_path].find.first
+          if corrected_filename
+            return corrected_filename, line-5
+          end
+        end
+      end
+      return filename, line
     end
 
     def application?
